@@ -1,0 +1,2 @@
+fuzzywuzzy
+tvdb_api
