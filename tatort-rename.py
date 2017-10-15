@@ -15,6 +15,7 @@ import tvdb_api
 from fuzzywuzzy import process
 import os
 import re
+import sys
 
 # Show ID of the Tatort series on tvdb.com
 TVDB_TATORT_SHOW_ID = 83214
@@ -28,7 +29,7 @@ def search_episode_by_filename(filename):
 
     # Find match
     match_results = process.extractBests(searchname, tatort_titles,
-                                         score_cutoff = 60, limit = 5)
+                                         score_cutoff = 60, limit = 9)
 
     # no match was found
     if not match_results:
@@ -57,9 +58,11 @@ def search_episode_by_filename(filename):
                 print("{index}: {name} (score: {score:02d}/100)".format(
                     index = index, name = episode['episodename'],
                     score = matching_score))
-
+            print("{index}: None of above".format(index = len(match_results)))
             # let user choose
             chosen_id = int(input('Your choice: '))
+            if chosen_id == len(match_results):
+                return filename
             # FIXME: repeat on wrong inputs
 
             chosen_result = match_results[chosen_id]
@@ -68,12 +71,15 @@ def search_episode_by_filename(filename):
     # get the TVDB episode object
     (matching_title, matching_score, matching_id) = chosen_result
     matching_episode = tatort_episodes[matching_id]
-
     # build new file name
     try:
         absolute_number = int(matching_episode['absolute_number'])
     except:
-        absolute_number = 0
+        try:
+            absolute_number = int(matching_episode['absoluteNumber'])
+        except:
+            print("Could not get absolute episode number")
+            absolute_number = 0
 
     new_filename = "Tatort {:04d} - {:02d}x{:02d} - {}{}".format(
         absolute_number, int(matching_episode['seasonnumber']),
@@ -83,13 +89,18 @@ def search_episode_by_filename(filename):
     new_filename = new_filename.replace('/', ' ')
 
     print("{} -> {}".format(filename, new_filename))
-    os.rename(filename, new_filename)
+    return new_filename
 
 
 def main():
-    for fn in os.listdir('.'):
-        if os.path.isfile(fn):
-            search_episode_by_filename(fn)
+    if len(sys.argv) < 2:
+        path = "./"
+    else:
+        path = sys.argv[1]
+    for fn in os.listdir(path):
+        if os.path.isfile(path+fn):
+            nfn = search_episode_by_filename(fn)
+            os.rename(path+fn, path+nfn)
 
 if __name__ == "__main__":
     t = tvdb_api.Tvdb(language='de')
@@ -115,5 +126,4 @@ if __name__ == "__main__":
 
             tatort_episodes[episode_id] = cur_episode
             tatort_titles[episode_id] = episode_title
-
     main()
