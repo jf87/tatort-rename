@@ -20,9 +20,7 @@ import sys
 # Show ID of the Tatort series on tvdb.com
 TVDB_TATORT_SHOW_ID = 83214
 
-def search_episode_by_filename(filename):
-    # Split out file extension
-    basename, extension = os.path.splitext(filename)
+def search_episode_by_filename(basename):
 
     # Remove common phrases not part of the title
     searchname = re.sub(r"Tatort", '', basename)
@@ -33,7 +31,7 @@ def search_episode_by_filename(filename):
 
     # no match was found
     if not match_results:
-        print("No match was found for file {}".format(filename))
+        print("No match was found for file {}".format(basename))
         return
 
     # only one match was found with the minimum required score
@@ -50,7 +48,7 @@ def search_episode_by_filename(filename):
             chosen_result = match_results[0]
         else:
             # print choices
-            print("Multiple matches were found for file {}".format(filename))
+            print("Multiple matches were found for file {}".format(basename))
             print("Please choose the correct one from the list below.")
             for index, match_result in enumerate(match_results):
                 (matching_title, matching_score, matching_id) = match_result
@@ -62,7 +60,7 @@ def search_episode_by_filename(filename):
             # let user choose
             chosen_id = int(input('Your choice: '))
             if chosen_id == len(match_results):
-                return filename
+                return basename
             # FIXME: repeat on wrong inputs
 
             chosen_result = match_results[chosen_id]
@@ -81,26 +79,33 @@ def search_episode_by_filename(filename):
             print("Could not get absolute episode number")
             absolute_number = 0
 
-    new_filename = "Tatort {:04d} - {:02d}x{:02d} - {}{}".format(
+    new_basename = "Tatort {:04d} - {:02d}x{:02d} - {}".format(
         absolute_number, int(matching_episode['seasonnumber']),
         int(matching_episode['episodenumber']),
-        matching_episode['episodename'], extension)
+        matching_episode['episodename'])
 
-    new_filename = new_filename.replace('/', ' ')
+    new_basename = new_basename.replace('/', ' ')
 
-    print("{} -> {}".format(filename, new_filename))
-    return new_filename
+    return new_basename
 
 
 def main():
+    matches = {}
     if len(sys.argv) < 2:
         path = "./"
     else:
         path = sys.argv[1]
     for fn in os.listdir(path):
         if os.path.isfile(path+fn):
-            nfn = search_episode_by_filename(fn)
-            os.rename(path+fn, path+nfn)
+            # Split out file extension
+            bn, ext = os.path.splitext(fn)
+            if bn in matches:
+                nbn = matches[bn]
+            else:
+                nbn = search_episode_by_filename(bn)
+                matches[bn] = nbn
+            print("{} -> {}".format(bn, nbn))
+            os.rename(path+fn, path+nbn+ext)
 
 if __name__ == "__main__":
     t = tvdb_api.Tvdb(language='de')
